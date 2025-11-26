@@ -1,11 +1,10 @@
-# app.py
 import streamlit as st
 from datetime import datetime
 import random
 
 st.set_page_config(page_title="어퓨 🌿", page_icon="💧", layout="wide")
 
-# --- CSS: 예쁜 글씨체 + 색감 ---
+# --- CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap');
@@ -19,7 +18,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 상단 헤더 + 슬로건 + 파랑새 캐릭터 ---
+# --- 상단 헤더 + 파랑새 ---
 st.markdown("""
     <div style="text-align: center; padding: 20px;">
         <p class="header-title">어퓨</p>
@@ -29,7 +28,7 @@ st.markdown("""
     <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
 
-# --- 초기 세션 상태 ---
+# --- 세션 초기화 ---
 if 'user_skin' not in st.session_state:
     st.session_state.user_skin = {
         "피부타입": None,
@@ -41,7 +40,6 @@ if 'user_skin' not in st.session_state:
 if 'my_drawer' not in st.session_state:
     st.session_state.my_drawer = []
 
-# 성분 설명
 ingredient_desc = {
     "히알루론산": "강력한 보습 성분으로 수분 유지에 도움을 줍니다.",
     "글리세린": "피부에 수분을 공급하고 장벽을 보호합니다.",
@@ -54,17 +52,32 @@ ingredient_desc = {
     "향료": "향을 위한 성분 — 민감/트러블 피부에는 자극이 될 수 있어요."
 }
 
-# --- 가상 화장품 데이터 100개 생성 ---
+# --- 현실적인 가격 참고하여 가상 제품 데이터 100개 생성 ---
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
 tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
 skin_types = ["건성","지성","복합성","수부지"]
 
+# 실제 롬앤, 페리페라 등 가격대 참고 (약 8,000~30,000원)
+price_range = {
+    "립스틱": (12000, 25000),
+    "틴트": (10000, 22000),
+    "토너": (12000, 30000),
+    "로션": (15000, 28000),
+    "크림": (20000, 35000),
+    "세럼": (25000, 45000),
+    "아이브로우": (12000, 20000),
+    "아이라이너": (10000, 22000),
+    "팩": (15000, 30000),
+    "선크림": (18000, 35000)
+}
+
 cosmetic_db = []
 for i in range(1, 101):
+    typ = random.choice(types)
     cosmetic_db.append({
         "이름": f"제품{i}",
-        "종류": random.choice(types),
-        "가격": random.randint(8000, 50000),
+        "종류": typ,
+        "가격": random.randint(price_range[typ][0], price_range[typ][1]),
         "성분": random.sample(list(ingredient_desc.keys()), k=3),
         "추천_피부타입": random.choice(skin_types),
         "추천_피부톤": random.choice(tones),
@@ -76,13 +89,13 @@ for i in range(1, 101):
 menu = ["🗄️ 서랍", "📷 제품 촬영", "🔎 검색", "💧 내 정보"]
 choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
 
-# --- 추천 함수 ---
+# --- 추천 함수 수정: 조건 안맞는 경우 제외 ---
 def recommend_products_for_user(query=None, category=None):
     user = st.session_state.user_skin
     results = []
     q = query.lower() if query else ""
     for prod in cosmetic_db:
-        # 피부톤/타입/민감도/트러블 필터
+        # 조건 체크
         if user["피부톤"] and prod["추천_피부톤"] != user["피부톤"]:
             continue
         if user["피부타입"] and prod["추천_피부타입"] != user["피부타입"]:
@@ -91,6 +104,7 @@ def recommend_products_for_user(query=None, category=None):
             continue
         if user["트러블정도"] >= prod.get("권장_트러블_max", 10):
             continue
+        # 키워드/카테고리 체크
         match = False
         if category and prod["종류"] == category:
             match = True
@@ -100,7 +114,7 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
-# --- 렌즈 이미지 인식 플레이스홀더 ---
+# --- 렌즈 인식 ---
 def recognize_product_from_image(image):
     prod = random.choice(cosmetic_db)
     reasons = []
@@ -121,7 +135,7 @@ def recognize_product_from_image(image):
     score = max(score, 0)
     return prod, score, reasons
 
-# --- 기능별 UI ---
+# --- UI ---
 if choice == "💧 내 정보":
     st.header("🧬 내 피부 정보 입력")
     st.session_state.user_skin["피부타입"] = st.selectbox("피부 타입", skin_types)
@@ -174,9 +188,9 @@ elif choice == "🔎 검색":
                 break
         results = recommend_products_for_user(query=query, category=category)
         if not results:
-            st.write("❌ 조건에 맞는 제품을 찾지 못했어요.")
+            st.warning("❌ 현재 조건에 맞는 제품이 없습니다. 입력한 피부 정보와 검색어를 확인해주세요.")
         else:
-            st.write(f"✅ {len(results)}개 제품을 추천해요:")
+            st.success(f"✅ {len(results)}개 제품을 추천해요:")
             for prod in results[:10]:
                 st.subheader(f"{prod['이름']}  —  {prod['종류']}")
                 st.write(f"💵 가격: {prod['가격']}원")
