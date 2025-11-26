@@ -19,7 +19,7 @@ st.markdown("""
 <div style="text-align: center; padding: 20px;">
     <p class="header-title">어퓨</p>
     <p class="header-subtitle">A few, just for you 💙</p>
-    
+</div>
 <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
 
@@ -69,7 +69,7 @@ price_range = {
     "선크림": (18000, 35000)
 }
 
-# --- 제품명 생성 함수 ---
+# --- 제품명 생성 ---
 def generate_product_name(prod_type):
     if prod_type in ["토너","로션","크림","세럼","팩","선크림"]:
         prefix = random.choice(["피부촉촉탱","촉촉촉","수분가득","진정쫀쫀"])
@@ -126,7 +126,7 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
-# --- 렌즈 인식 (제품 촬영) ---
+# --- 제품 촬영 ---
 def recognize_product_from_image(image):
     prod = random.choice(cosmetic_db)
     reasons = []
@@ -147,7 +147,7 @@ def recognize_product_from_image(image):
     return prod, score, reasons
 
 # --- 메뉴 ---
-menu = ["🗄️ 서랍", "📷 제품 촬영", "🔎 검색", "💧 내 정보"]
+menu = ["🗄️ 서랍", "📷 제품 촬영", "🔎 검색", "💧 내 정보", "💡 루틴 추천"]
 choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
 
 # --- UI ---
@@ -164,9 +164,10 @@ elif choice == "🗄️ 서랍":
     with st.expander("➕ 새 화장품 추가"):
         name = st.text_input("제품 이름")
         exp_date = st.date_input("유통기한")
+        rating = st.slider("만족도 (1~5)", 1, 5, 3)
         if st.button("추가하기"):
             if name:
-                st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "성분":[]})
+                st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "별점": rating})
                 st.success(f"'{name}' 추가됨")
     for idx, item in enumerate(st.session_state.my_drawer):
         st.subheader(f"{item['이름']} 🧴")
@@ -175,12 +176,12 @@ elif choice == "🗄️ 서랍":
             st.warning("⚠️ 유통기한이 지났습니다!")
         else:
             st.write(f"남은 사용 가능 기간: {days_left}일")
-        ing_input = st.text_input("성분 추가", key=f"ing_{idx}")
-        if st.button("성분 추가", key=f"add_ing_{idx}"):
-            if ing_input:
-                item["성분"].append(ing_input)
-                st.success(f"{ing_input} 추가됨")
-        st.write("성분:", item["성분"])
+        st.write(f"⭐ 만족도: {item['별점']}")
+        # 별점이 5점이면 유사 제품 추천
+        if item['별점'] == 5:
+            similar = [p for p in cosmetic_db if p["종류"] in item["이름"] and p["이름"] != item["이름"]]
+            if similar:
+                st.info(f"이 제품과 유사한 추천 제품: {', '.join([p['이름'] for p in similar[:3]])}")
         if st.button("삭제", key=f"del_{idx}"):
             st.session_state.my_drawer.pop(idx)
             st.experimental_rerun()
@@ -226,9 +227,19 @@ elif choice == "🔎 검색":
                         info = ingredient_desc.get(ing, ["정보 없음",""])
                         st.info(f"{ing} → 장점: {info[0]}, 주의: {info[1]}")
 
-# --- 하단 슬로건 ---
-st.markdown("""
-<div style="text-align: center; margin-top: 40px; color: #56cfe1;">
-<p>“A few, just for you” — 당신만을 위한 어퓨 💙</p>
-</div>
-""", unsafe_allow_html=True)
+elif choice == "💡 루틴 추천":
+    st.header("💡 고민을 말하면 맞춤 루틴 추천")
+    concern = st.text_area("피부 고민을 입력하세요 (예: 건조, 트러블, 민감)")
+    if st.button("루틴 추천"):
+        if not st.session_state.my_drawer:
+            st.warning("서랍에 제품이 없습니다. 제품을 먼저 추가해주세요.")
+        else:
+            st.success("💧 추천 루틴:")
+            # 간단 루틴: 서랍에서 피부타입/민감도 고려해서 최대 3개 제품 추천
+            routine = []
+            for p in st.session_state.my_drawer:
+                prod_obj = next((c for c in cosmetic_db if c["이름"] == p["이름"]), None)
+                if prod_obj:
+                    routine.append(prod_obj)
+            for r in routine[:3]:
+                st.write(f"- {r['이름']} ({r['종류']})")
