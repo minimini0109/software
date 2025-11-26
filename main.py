@@ -26,10 +26,10 @@ st.markdown("""
 # --- Session 초기화 ---
 if 'user_skin' not in st.session_state:
     st.session_state.user_skin = {
-        "피부타입": "건성",
+        "피부타입": None,
         "민감도": 0,
         "트러블정도": 0,
-        "피부톤": "봄웜톤"
+        "피부톤": None
     }
 
 if 'my_drawer' not in st.session_state:
@@ -39,6 +39,7 @@ if 'my_drawer' not in st.session_state:
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
 skin_types = ["건성","지성","복합성","수부지"]
 tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
+cosmetic_categories = ["피부화장품", "색조화장품"]
 
 ingredient_desc = {
     "비타민E": ["항산화, 피부보호", "고농도 사용 시 트러블 가능"],
@@ -111,12 +112,14 @@ def recommend_products_for_user(query=None, category=None):
     results = []
     q = query.lower() if query else ""
     for prod in cosmetic_db:
+        # 피부화장품 조건
         if prod["추천_피부타입"] and prod["추천_피부타입"] != user["피부타입"]:
             continue
         if user["민감도"] > prod["권장_민감도_max"]:
             continue
         if user["트러블정도"] > prod["권장_트러블_max"]:
             continue
+        # 검색 키워드
         match = False
         if category and prod["종류"] == category:
             match = True
@@ -153,10 +156,10 @@ choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
 # --- UI ---
 if choice == "💧 내 정보":
     st.header("💙 내 피부 정보 입력")
-    st.session_state.user_skin["피부타입"] = st.selectbox("피부 타입", skin_types, index=skin_types.index(user["피부타입"]))
+    st.session_state.user_skin["피부타입"] = st.selectbox("피부 타입", skin_types, index=skin_types.index(user["피부타입"] or skin_types[0]))
     st.session_state.user_skin["민감도"] = st.slider("피부 민감도 (0~10)", 0, 10, user["민감도"])
     st.session_state.user_skin["트러블정도"] = st.slider("피부 트러블 정도 (0~10)", 0, 10, user["트러블정도"])
-    st.session_state.user_skin["피부톤"] = st.selectbox("피부 톤", tones, index=tones.index(user["피부톤"]))
+    st.session_state.user_skin["피부톤"] = st.selectbox("피부 톤", tones, index=tones.index(user["피부톤"] or tones[0]))
     st.success("✅ 정보 저장 완료!")
 
 elif choice == "🗄️ 서랍":
@@ -164,10 +167,11 @@ elif choice == "🗄️ 서랍":
     with st.expander("➕ 새 화장품 추가"):
         name = st.text_input("제품 이름")
         exp_date = st.date_input("유통기한")
+        cat = st.selectbox("화장품 종류", cosmetic_categories)
         rating = st.slider("만족도 (1~5)", 1, 5, 3)
         if st.button("추가하기"):
             if name:
-                st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "별점": rating})
+                st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "별점": rating, "카테고리": cat})
                 st.success(f"'{name}' 추가됨")
     for idx, item in enumerate(st.session_state.my_drawer):
         st.subheader(f"{item['이름']} 🧴")
@@ -177,11 +181,6 @@ elif choice == "🗄️ 서랍":
         else:
             st.write(f"남은 사용 가능 기간: {days_left}일")
         st.write(f"⭐ 만족도: {item['별점']}")
-        # 별점이 5점이면 유사 제품 추천
-        if item['별점'] == 5:
-            similar = [p for p in cosmetic_db if p["종류"] in item["이름"] and p["이름"] != item["이름"]]
-            if similar:
-                st.info(f"이 제품과 유사한 추천 제품: {', '.join([p['이름'] for p in similar[:3]])}")
         if st.button("삭제", key=f"del_{idx}"):
             st.session_state.my_drawer.pop(idx)
             st.experimental_rerun()
@@ -231,15 +230,25 @@ elif choice == "💡 루틴 추천":
     st.header("💡 고민을 말하면 맞춤 루틴 추천")
     concern = st.text_area("피부 고민을 입력하세요 (예: 건조, 트러블, 민감)")
     if st.button("루틴 추천"):
-        if not st.session_state.my_drawer:
-            st.warning("서랍에 제품이 없습니다. 제품을 먼저 추가해주세요.")
+        # 피부화장품만 필터
+        skin_products = [p for p in st.session_state.my_drawer if p["카테고리"]=="피부화장품"]
+        if not skin_products:
+            st.warning("서랍에 피부화장품이 없습니다. 먼저 추가해주세요.")
         else:
             st.success("💧 추천 루틴:")
-            # 간단 루틴: 서랍에서 피부타입/민감도 고려해서 최대 3개 제품 추천
-            routine = []
-            for p in st.session_state.my_drawer:
-                prod_obj = next((c for c in cosmetic_db if c["이름"] == p["이름"]), None)
-                if prod_obj:
-                    routine.append(prod_obj)
-            for r in routine[:3]:
-                st.write(f"- {r['이름']} ({r['종류']})")
+            # 아침/저녁 예시
+            morning_order = ["토너","세럼","로션","크림","선크림"]
+            evening_order = ["토너","세럼","로션","크림","팩"]
+            def routine_for_order(order):
+                routine = []
+                for step in order:
+                    prod = next((p for p in skin_products if step.lower() in p["이름"].lower()), None)
+                    if prod:
+                        routine.append(f"{step}: {prod['이름']}")
+                return routine
+            st.write("🌞 아침 루틴:")
+            for r in routine_for_order(morning_order):
+                st.write(f"- {r}")
+            st.write("🌙 저녁 루틴:")
+            for r in routine_for_order(evening_order):
+                st.write(f"- {r}")
