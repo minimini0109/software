@@ -6,12 +6,12 @@ st.set_page_config(page_title="어퓨 🌿", page_icon="💧", layout="wide")
 
 # --- CSS ---
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap');
-    .stApp { background-color: #f0fbff; font-family: 'Montserrat', sans-serif; color: #033f63; }
-    .header-title { font-size: 64px; font-weight: 700; color: #0278ae; margin: 0; }
-    .header-subtitle { font-size: 24px; color: #56cfe1; margin: 0; }
-    </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap');
+.stApp { background-color: #f0fbff; font-family: 'Montserrat', sans-serif; color: #033f63; }
+.header-title { font-size: 64px; font-weight: 700; color: #0278ae; margin: 0; }
+.header-subtitle { font-size: 24px; color: #56cfe1; margin: 0; }
+</style>
 """, unsafe_allow_html=True)
 
 # --- Header ---
@@ -19,8 +19,7 @@ st.markdown("""
 <div style="text-align: center; padding: 20px;">
     <p class="header-title">어퓨</p>
     <p class="header-subtitle">A few, just for you 💙</p>
-    <p style="font-size: 80px; color:#1E90FF; margin: 10px 0;">🐦</p>
-</div>
+
 <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
 
@@ -36,21 +35,25 @@ if 'user_skin' not in st.session_state:
 if 'my_drawer' not in st.session_state:
     st.session_state.my_drawer = []
 
-# --- 제품 종류/성분 ---
+# --- 데이터 정의 ---
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
-tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
 skin_types = ["건성","지성","복합성","수부지"]
+tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
+
 ingredient_desc = {
-    "립스틱": ["비타민E","코코아버터","시어버터"],
-    "틴트": ["비타민E","알로에베라","호호바오일"],
-    "토너": ["히알루론산","글리세린","판테놀"],
-    "로션": ["세라마이드","판테놀","알로에베라"],
-    "크림": ["세라마이드","마데카소사이드","판테놀"],
-    "세럼": ["비타민C","레티놀","히알루론산"],
-    "아이브로우": ["카카오씨드오일","쉐어버터","비타민E"],
-    "아이라이너": ["호호바오일","비타민E","판테놀"],
-    "팩": ["히알루론산","알로에베라","세라마이드"],
-    "선크림": ["세라마이드","비타민E","판테놀"]
+    "비타민E": ["항산화, 피부보호", "고농도 사용 시 트러블 가능"],
+    "코코아버터": ["보습, 피부유연화", "민감성 피부 주의"],
+    "시어버터": ["보습, 진정", "지성 피부 과다 사용 주의"],
+    "알로에베라": ["진정, 수분공급", "알레르기 가능성 있음"],
+    "호호바오일": ["유수분 밸런스, 보습", "모든 피부 안전"],
+    "히알루론산": ["보습, 탄력", "저민감성 피부 안전"],
+    "글리세린": ["보습, 수분 유지", "극건성 피부 안전"],
+    "판테놀": ["진정, 재생", "저자극"],
+    "세라마이드": ["보습, 장벽 강화", "민감성 피부 안전"],
+    "마데카소사이드": ["진정, 재생", "과다 사용 시 민감 피부 주의"],
+    "비타민C": ["미백, 항산화", "자극 가능성"],
+    "레티놀": ["재생, 노화방지", "민감 피부 자극 가능"],
+    "카카오씨드오일": ["영양공급, 윤기", "지성 피부 주의"]
 }
 
 price_range = {
@@ -66,18 +69,26 @@ price_range = {
     "선크림": (18000, 35000)
 }
 
-# --- 가상의 제품 100개 생성 ---
+# --- 제품명 생성 함수 ---
+def generate_product_name(prod_type):
+    if prod_type in ["토너","로션","크림","세럼","팩","선크림"]:
+        prefix = random.choice(["피부촉촉탱","촉촉촉","수분가득","진정쫀쫀"])
+    else:
+        prefix = random.choice(["글로우","립밤","틴트러버","아이펀"])
+    return f"{prefix} {prod_type}"
+
+# --- 가상 제품 생성 ---
 cosmetic_db = []
 user = st.session_state.user_skin
 for i in range(1, 101):
     typ = random.choice(types)
-    # 색조: 톤만 고려, 피부화장품: 피부타입, 민감도, 트러블까지 고려
+    name = generate_product_name(typ)
     if typ in ["립스틱","틴트","아이브로우","아이라이너"]:
         cosmetic_db.append({
-            "이름": f"{typ} 제품{i}",
+            "이름": name,
             "종류": typ,
             "가격": random.randint(price_range[typ][0], price_range[typ][1]),
-            "성분": random.sample(ingredient_desc[typ], k=2),
+            "성분": random.sample(list(ingredient_desc.keys()), k=2),
             "추천_피부톤": user["피부톤"],
             "추천_피부타입": None,
             "권장_민감도_max": 10,
@@ -85,35 +96,27 @@ for i in range(1, 101):
         })
     else:
         cosmetic_db.append({
-            "이름": f"{typ} 제품{i}",
+            "이름": name,
             "종류": typ,
             "가격": random.randint(price_range[typ][0], price_range[typ][1]),
-            "성분": random.sample(ingredient_desc[typ], k=2),
-            "추천_피부톤": user["피부톤"],
+            "성분": random.sample(list(ingredient_desc.keys()), k=2),
+            "추천_피부톤": None,
             "추천_피부타입": user["피부타입"],
             "권장_민감도_max": max(user["민감도"],3),
             "권장_트러블_max": max(user["트러블정도"],3)
         })
-
-# --- 메뉴 ---
-menu = ["🗄️ 서랍", "📷 제품 촬영", "🔎 검색", "💧 내 정보"]
-choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
 
 # --- 추천 함수 ---
 def recommend_products_for_user(query=None, category=None):
     results = []
     q = query.lower() if query else ""
     for prod in cosmetic_db:
-        # 피부톤/타입 필터
-        if prod["추천_피부톤"] and prod["추천_피부톤"] != user["피부톤"]:
-            continue
         if prod["추천_피부타입"] and prod["추천_피부타입"] != user["피부타입"]:
             continue
         if user["민감도"] > prod["권장_민감도_max"]:
             continue
         if user["트러블정도"] > prod["권장_트러블_max"]:
             continue
-        # 검색어/카테고리 필터
         match = False
         if category and prod["종류"] == category:
             match = True
@@ -123,18 +126,46 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
+# --- 메뉴 ---
+menu = ["🗄️ 서랍", "🔎 검색", "💧 내 정보"]
+choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
+
 # --- UI ---
 if choice == "💧 내 정보":
     st.header("💙 내 피부 정보 입력")
     st.session_state.user_skin["피부타입"] = st.selectbox("피부 타입", skin_types, index=skin_types.index(user["피부타입"]))
     st.session_state.user_skin["민감도"] = st.slider("피부 민감도 (0~10)", 0, 10, user["민감도"])
     st.session_state.user_skin["트러블정도"] = st.slider("피부 트러블 정도 (0~10)", 0, 10, user["트러블정도"])
-    st.session_state.user_skin["피부톤"] = st.selectbox("피부 톤", tones, index=tones.index(user["피부톤"]))
     st.success("✅ 정보 저장 완료!")
+
+elif choice == "🗄️ 서랍":
+    st.header("💄 나의 화장품 서랍")
+    with st.expander("➕ 새 화장품 추가"):
+        name = st.text_input("제품 이름")
+        exp_date = st.date_input("유통기한")
+        if st.button("추가하기"):
+            if name:
+                st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "성분":[]})
+                st.success(f"'{name}' 추가됨")
+    # 서랍 리스트
+    for idx, item in enumerate(st.session_state.my_drawer):
+        st.subheader(f"{item['이름']} 🧴")
+        days_left = (item['유통기한'] - datetime.today().date()).days
+        st.write(f"남은 사용 가능 기간: {days_left}일")
+        # 성분 입력/보기
+        ing_input = st.text_input("성분 추가", key=f"ing_{idx}")
+        if st.button("성분 추가", key=f"add_ing_{idx}"):
+            if ing_input:
+                item["성분"].append(ing_input)
+                st.success(f"{ing_input} 추가됨")
+        st.write("성분:", item["성분"])
+        if st.button("삭제", key=f"del_{idx}"):
+            st.session_state.my_drawer.pop(idx)
+            st.experimental_rerun()
 
 elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
-    query = st.text_input("예: '틴트', '립스틱', '민감성 피부용 토너'")
+    query = st.text_input("예: '민감성 피부용 토너'")
     if st.button("검색 / 추천"):
         category = None
         for cat in types:
@@ -149,8 +180,11 @@ elif choice == "🔎 검색":
             for prod in results[:10]:
                 st.subheader(f"{prod['이름']} — {prod['종류']}")
                 st.write(f"💵 가격: {prod['가격']}원")
-                st.write("🧴 성분:", prod["성분"])
-                st.write(f"추천 이유: 피부톤={prod['추천_피부톤']}, 피부타입={prod['추천_피부타입']}")
+                st.write("🧴 성분:")
+                for ing in prod["성분"]:
+                    if st.button(ing, key=f"ing_{prod['이름']}"):
+                        info = ingredient_desc.get(ing, ["정보 없음",""])
+                        st.info(f"{ing} → 장점: {info[0]}, 주의: {info[1]}")
 
 # --- 하단 슬로건 ---
 st.markdown("""
