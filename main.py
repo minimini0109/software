@@ -23,8 +23,6 @@ st.markdown("""
     <div style="text-align: center; padding: 20px;">
         <p class="header-title">어퓨</p>
         <p class="header-subtitle">A few, just for you 💙</p>
-        <p style="font-size: 80px; color:#1E90FF; margin: 10px 0;">🐦</p>
-    </div>
     <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
 
