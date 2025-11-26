@@ -5,7 +5,7 @@ import random
 
 st.set_page_config(page_title="어퓨 🌿", page_icon="💧", layout="wide")
 
-# --- CSS ---
+# --- CSS: 예쁜 글씨체 + 색감 ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap');
@@ -24,7 +24,7 @@ st.markdown("""
     <div style="text-align: center; padding: 20px;">
         <p class="header-title">어퓨</p>
         <p class="header-subtitle">A few, just for you 💙</p>
-        <p style="font-size: 80px; margin: 10px 0;">🐦</p>
+        <p style="font-size: 80px; color:#1E90FF; margin: 10px 0;">🐦</p>
     </div>
     <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
@@ -41,6 +41,7 @@ if 'user_skin' not in st.session_state:
 if 'my_drawer' not in st.session_state:
     st.session_state.my_drawer = []
 
+# 성분 설명
 ingredient_desc = {
     "히알루론산": "강력한 보습 성분으로 수분 유지에 도움을 줍니다.",
     "글리세린": "피부에 수분을 공급하고 장벽을 보호합니다.",
@@ -53,7 +54,7 @@ ingredient_desc = {
     "향료": "향을 위한 성분 — 민감/트러블 피부에는 자극이 될 수 있어요."
 }
 
-# --- 100개 가상 화장품 데이터 생성 ---
+# --- 가상 화장품 데이터 100개 생성 ---
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
 tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
 skin_types = ["건성","지성","복합성","수부지"]
@@ -81,7 +82,7 @@ def recommend_products_for_user(query=None, category=None):
     results = []
     q = query.lower() if query else ""
     for prod in cosmetic_db:
-        # 필터: 피부톤/타입/민감도/트러블
+        # 피부톤/타입/민감도/트러블 필터
         if user["피부톤"] and prod["추천_피부톤"] != user["피부톤"]:
             continue
         if user["피부타입"] and prod["추천_피부타입"] != user["피부타입"]:
@@ -101,12 +102,10 @@ def recommend_products_for_user(query=None, category=None):
 
 # --- 렌즈 이미지 인식 플레이스홀더 ---
 def recognize_product_from_image(image):
-    # 랜덤 제품 선택
     prod = random.choice(cosmetic_db)
     reasons = []
     user = st.session_state.user_skin
     score = 100
-    # 점수 감점 이유 기록
     if user["피부톤"] != prod["추천_피부톤"]:
         score -= 20
         reasons.append(f"사용자 피부톤({user['피부톤']})과 맞지 않음")
@@ -178,7 +177,7 @@ elif choice == "🔎 검색":
             st.write("❌ 조건에 맞는 제품을 찾지 못했어요.")
         else:
             st.write(f"✅ {len(results)}개 제품을 추천해요:")
-            for prod in results[:10]:  # 상위 10개만 표시
+            for prod in results[:10]:
                 st.subheader(f"{prod['이름']}  —  {prod['종류']}")
                 st.write(f"💵 가격: {prod['가격']}원")
                 st.write("🧴 성분:", prod["성분"])
