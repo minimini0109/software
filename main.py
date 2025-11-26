@@ -19,7 +19,7 @@ st.markdown("""
 <div style="text-align: center; padding: 20px;">
     <p class="header-title">어퓨</p>
     <p class="header-subtitle">A few, just for you 💙</p>
-
+    
 <hr style="border:1px solid #cceafc"/>
 """, unsafe_allow_html=True)
 
@@ -126,8 +126,28 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
+# --- 렌즈 인식 (제품 촬영) ---
+def recognize_product_from_image(image):
+    prod = random.choice(cosmetic_db)
+    reasons = []
+    score = 100
+    if user["피부톤"] != prod["추천_피부톤"]:
+        score -= 20
+        reasons.append(f"사용자 피부톤({user['피부톤']})과 맞지 않음")
+    if user["피부타입"] != prod["추천_피부타입"]:
+        score -= 20
+        reasons.append(f"사용자 피부타입({user['피부타입']})과 맞지 않음")
+    if user["민감도"] >= prod["권장_민감도_max"]:
+        score -= 20
+        reasons.append(f"민감도가 높아 성분 일부가 자극 가능")
+    if user["트러블정도"] >= prod["권장_트러블_max"]:
+        score -= 20
+        reasons.append(f"트러블 정도가 높아 일부 성분 자극 가능")
+    score = max(score,0)
+    return prod, score, reasons
+
 # --- 메뉴 ---
-menu = ["🗄️ 서랍", "🔎 검색", "💧 내 정보"]
+menu = ["🗄️ 서랍", "📷 제품 촬영", "🔎 검색", "💧 내 정보"]
 choice = st.selectbox("🔹 메뉴 선택", menu, index=0)
 
 # --- UI ---
@@ -136,6 +156,7 @@ if choice == "💧 내 정보":
     st.session_state.user_skin["피부타입"] = st.selectbox("피부 타입", skin_types, index=skin_types.index(user["피부타입"]))
     st.session_state.user_skin["민감도"] = st.slider("피부 민감도 (0~10)", 0, 10, user["민감도"])
     st.session_state.user_skin["트러블정도"] = st.slider("피부 트러블 정도 (0~10)", 0, 10, user["트러블정도"])
+    st.session_state.user_skin["피부톤"] = st.selectbox("피부 톤", tones, index=tones.index(user["피부톤"]))
     st.success("✅ 정보 저장 완료!")
 
 elif choice == "🗄️ 서랍":
@@ -147,12 +168,13 @@ elif choice == "🗄️ 서랍":
             if name:
                 st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "성분":[]})
                 st.success(f"'{name}' 추가됨")
-    # 서랍 리스트
     for idx, item in enumerate(st.session_state.my_drawer):
         st.subheader(f"{item['이름']} 🧴")
         days_left = (item['유통기한'] - datetime.today().date()).days
-        st.write(f"남은 사용 가능 기간: {days_left}일")
-        # 성분 입력/보기
+        if days_left < 0:
+            st.warning("⚠️ 유통기한이 지났습니다!")
+        else:
+            st.write(f"남은 사용 가능 기간: {days_left}일")
         ing_input = st.text_input("성분 추가", key=f"ing_{idx}")
         if st.button("성분 추가", key=f"add_ing_{idx}"):
             if ing_input:
@@ -162,6 +184,24 @@ elif choice == "🗄️ 서랍":
         if st.button("삭제", key=f"del_{idx}"):
             st.session_state.my_drawer.pop(idx)
             st.experimental_rerun()
+
+elif choice == "📷 제품 촬영":
+    st.header("📷 제품 촬영 / 스캔")
+    uploaded_file = st.file_uploader("제품 이미지 업로드", type=["jpg","jpeg","png"])
+    if uploaded_file:
+        st.image(uploaded_file, caption="📦 업로드된 제품 이미지", use_column_width=True)
+        prod, score, reasons = recognize_product_from_image(uploaded_file)
+        st.subheader(f"제품 이름: {prod['이름']}")
+        st.write("종류:", prod["종류"])
+        st.write("성분:", prod["성분"])
+        st.metric("✨ 적합도 점수", f"{score}/100")
+        st.write("점수 이유:")
+        for r in reasons:
+            st.write(f"- {r}")
+        ing_choice = st.selectbox("성분 자세히 보기 🔍", prod["성분"])
+        if ing_choice:
+            info = ingredient_desc.get(ing_choice, ["정보 없음",""])
+            st.info(f"{ing_choice} → 장점: {info[0]}, 주의: {info[1]}")
 
 elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
@@ -182,7 +222,7 @@ elif choice == "🔎 검색":
                 st.write(f"💵 가격: {prod['가격']}원")
                 st.write("🧴 성분:")
                 for ing in prod["성분"]:
-                    if st.button(ing, key=f"ing_{prod['이름']}"):
+                    if st.button(ing, key=f"search_ing_{prod['이름']}"):
                         info = ingredient_desc.get(ing, ["정보 없음",""])
                         st.info(f"{ing} → 장점: {info[0]}, 주의: {info[1]}")
 
