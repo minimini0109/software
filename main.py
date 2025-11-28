@@ -299,4 +299,3 @@ evening_order = ["토너","세럼","로션","크림","팩"]
         st.write("🌙 저녁 루틴:")
         for r in routine_for_order(evening_order, skin_products):
             st.write(f"- {r}") 
-```
