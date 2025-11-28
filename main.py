@@ -1,86 +1,100 @@
-import streamlit as st
-from datetime import datetime
-import random
-import re
-
-st.set_page_config(page_title="어퓨 🌿", page_icon="💧", layout="wide")
-
-# --- CSS ---
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap');
-.stApp { background-color: #f0fbff; font-family: 'Montserrat', sans-serif; color: #033f63; }
-.header-title { font-size: 64px; font-weight: 700; color: #0278ae; margin: 0; }
-.header-subtitle { font-size: 24px; color: #56cfe1; margin: 0; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- Header ---
-st.markdown("""
-<div style="text-align: center; padding: 20px;">
-    <p class="header-title">어퓨</p>
-    <p class="header-subtitle">A few, just for you 💙</p>
-</div>
-<hr style="border:1px solid #cceafc"/>
-""", unsafe_allow_html=True)
-
-# --- Session 초기화 ---
-if 'user_skin' not in st.session_state:
-    st.session_state.user_skin = {
-        "피부타입": None,
-        "민감도": 0,
-        "트러블정도": 0,
-        "피부톤": None
-    }
-
-if 'my_drawer' not in st.session_state:
-    st.session_state.my_drawer = []
-
-# --- 데이터 정의 ---
-types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
-skin_types = ["건성","지성","복합성","수부지"]
-tones = ["봄웜톤","가을웜톤","여름쿨톤","겨울쿨톤"]
-cosmetic_categories = ["피부화장품", "색조화장품"]
-
-ingredient_desc = {
-    "비타민E": ["항산화, 피부보호", "고농도 사용 시 트러블 가능"],
-    "코코아버터": ["보습, 피부유연화", "민감성 피부 주의"],
-    "시어버터": ["보습, 진정", "지성 피부 과다 사용 주의"],
-    "알로에베라": ["진정, 수분공급", "알레르기 가능성 있음"],
-    "호호바오일": ["유수분 밸런스, 보습", "모든 피부 안전"],
-    "히알루론산": ["보습, 탄력", "저민감성 피부 안전"],
-    "글리세린": ["보습, 수분 유지", "극건성 피부 안전"],
-    "판테놀": ["진정, 재생", "저자극"],
-    "세라마이드": ["보습, 장벽 강화", "민감성 피부 안전"],
-    "마데카소사이드": ["진정, 재생", "과다 사용 시 민감 피부 주의"],
-    "비타민C": ["미백, 항산화", "자극 가능성"],
-    "레티놀": ["재생, 노화방지", "민감 피부 자극 가능"],
-    "카카오씨드오일": ["영양공급, 윤기", "지성 피부 주의"]
-}
-
-price_range = {
-    "립스틱": (12000, 25000),
-    "틴트": (10000, 22000),
-    "토너": (12000, 30000),
-    "로션": (15000, 28000),
-    "크림": (20000, 35000),
-    "세럼": (25000, 45000),
-    "아이브로우": (12000, 20000),
-    "아이라이너": (10000, 22000),
-    "팩": (15000, 30000),
-    "선크림": (18000, 35000)
-}
-
-# --- 헬퍼: 안전한 key 생성 ---
-def make_safe_key(*parts):
-    joined = "_".join([str(p) for p in parts if p is not None])
-    safe = re.sub(r'[^0-9a-zA-Zㄱ-힣_]', '_', joined)
-    return safe[:200]
-
-# --- 제품명 생성 ---
-def generate_product_name(prod_type):
-    if prod_type in ["토너","로션","크림","세럼","팩","선크림"]:
-        prefix = random.choice(["피부촉촉탱","촉촉촉","수분가득","진정쫀쫀"])
+{"id":"90012","variant":"standard","title":"화장품 추천 코드 수정"}
+<content>
+# --- 서랍 추가/삭제 부분 수정 ---
+for idx, item in enumerate(list(st.session_state.my_drawer)):
+    st.subheader(f"{item['이름']} 🧴")
+    days_left = (item['유통기한'] - datetime.today().date()).days
+    if days_left < 0:
+        st.warning("⚠️ 유통기한이 지났습니다!")
     else:
-        prefix = random.choice(["글로우","립밤","틴트러버","아이펀"])
-    return f"{prefix} {prod_type} #{random.randint(100,999)}"
+        st.write(f"남은 사용 가능 기간: {days_left}일")
+    st.write(f"⭐ 만족도: {item['별점']}")
+    # 삭제 버튼 key 고유화
+    del_key = make_safe_key("del", idx, item['이름'], item['유통기한'])
+    if st.button("삭제", key=del_key):
+        st.session_state.my_drawer.pop(idx)
+        st.experimental_rerun()
+
+# --- 서랍 기반 추천 추가 ---
+if choice == "🔎 검색":
+    st.header("🔍 제품 검색 & 추천")
+    query = st.text_input("예: '민감성 피부용 토너'")
+    if st.button("검색 / 추천", key=make_safe_key("search_button", query or "noquery")):
+        category = None
+        # 질의에 타입 이름 포함 여부 체크
+        for cat in types:
+            if cat in (query or ""):
+                category = cat
+                break
+        results = recommend_products_for_user(query=query, category=category)
+
+        # 추천 이유 표시
+        st.subheader("추천 이유")
+        if results:
+            st.write("- 사용자 피부타입/민감도/트러블 정도 기반 필터 적용")
+            st.write("- 검색 키워드 매칭")
+            # 서랍에서 만족도 5 제품과 성분 유사 제품 추천
+            top_drawer = [p for p in st.session_state.my_drawer if p['별점'] == 5]
+            if top_drawer:
+                st.write(f"- 서랍 만족도 5 제품과 유사한 제품 포함: {', '.join([p['이름'] for p in top_drawer])}")
+
+        if not results:
+            st.warning("❌ 현재 조건에 맞는 제품이 없습니다.")
+        else:
+            st.success(f"✅ {len(results)}개 제품을 추천해요:")
+            for prod in results[:10]:
+                st.subheader(f"{prod['이름']} — {prod['종류']}")
+                st.write(f"💵 가격: {prod['가격']}원")
+                st.write("🧴 성분:")
+                for ing in prod["성분"]:
+                    btn_key = make_safe_key("search_ing", prod['이름'], ing)
+                    # 성분 클릭 시 설명 표시
+                    if st.button(ing, key=btn_key):
+                        info = ingredient_desc.get(ing, ["정보 없음",""])
+                        st.info(f"{ing} → 장점: {info[0]}, 주의: {info[1]}")
+
+# --- 루틴 추천에서 유통기한 지난 제품 제외 ---
+if choice == "💡 루틴 추천":
+    st.header("💡 고민을 말하면 맞춤 루틴 추천")
+    concern = st.text_area("피부 고민을 입력하세요 (예: 건조, 트러블, 민감)")
+    if st.button("루틴 추천", key=make_safe_key("routine_reco", concern or "no_concern")):
+        # 서랍에서 피부화장품만 골라내고 유통기한 지난 제품 제외
+        today = datetime.today().date()
+        skin_products = [p for p in st.session_state.my_drawer if p.get("카테고리") == "피부화장품" and p['유통기한'] >= today]
+        if not skin_products:
+            st.warning("서랍에 사용 가능한 피부화장품이 없습니다. 먼저 추가해주세요.")
+        else:
+            st.success("💧 추천 루틴:")
+            morning_order = ["토너","세럼","로션","크림","선크림"]
+            evening_order = ["토너","세럼","로션","크림","팩"]
+
+            def routine_for_order(order, products_list):
+                routine = []
+                used_indices = set()
+                for step in order:
+                    matched = False
+                    for idx, p in enumerate(products_list):
+                        if idx in used_indices:
+                            continue
+                        if step.lower() in p["이름"].lower():
+                            routine.append(f"{step}: {p['이름']}")
+                            used_indices.add(idx)
+                            matched = True
+                            break
+                    if matched:
+                        continue
+                    for idx, p in enumerate(products_list):
+                        if idx in used_indices:
+                            continue
+                        routine.append(f"{step}: {p['이름']}")
+                        used_indices.add(idx)
+                        matched = True
+                        break
+                return routine
+
+            st.write("🌞 아침 루틴:")
+            for r in routine_for_order(morning_order, skin_products):
+                st.write(f"- {r}")
+            st.write("🌙 저녁 루틴:")
+            for r in routine_for_order(evening_order, skin_products):
+                st.write(f"- {r}")
