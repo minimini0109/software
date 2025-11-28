@@ -127,19 +127,18 @@ cosmetic_db.append({
 
 # --- 추천 함수 ---
 
-def recommend_products_for_user(query=None, category=None, similar_to=None):
+def recommend_products_for_user(query=None, category=None, min_rating=0):
 results = []
 q = query.lower() if query else ""
 for prod in cosmetic_db:
+# 필터: 사용자 정보 기반
 if prod["추천_피부타입"] and prod["추천_피부타입"] != user["피부타입"]:
 continue
 if user["민감도"] > prod["권장_민감도_max"]:
 continue
 if user["트러블정도"] > prod["권장_트러블_max"]:
 continue
-# 유통기한 체크
-if similar_to and prod["이름"] == similar_to["이름"]:
-continue
+# 카테고리/검색 키워드 필터
 match = False
 if category and prod["종류"] == category:
 match = True
@@ -147,6 +146,9 @@ if query and (query.lower() in prod["종류"].lower() or query.lower() in prod["
 match = True
 if not query and not category:
 match = True
+# 서랍에서 만족도 기반 추천
+if min_rating > 0:
+match = match and (prod.get("rating",5) >= min_rating)
 if match:
 results.append(prod)
 return results
@@ -188,114 +190,3 @@ st.session_state.user_skin["민감도"] = st.slider("피부 민감도 (0~10)", 0
 st.session_state.user_skin["트러블정도"] = st.slider("피부 트러블 정도 (0~10)", 0, 10, user["트러블정도"])
 st.session_state.user_skin["피부톤"] = st.selectbox("피부 톤", tones, index=tones.index(current_tone))
 st.success("✅ 정보 저장 완료!")
-
-elif choice == "🗄️ 서랍":
-st.header("💄 나의 화장품 서랍")
-with st.expander("➕ 새 화장품 추가"):
-name = st.text_input("제품 이름")
-exp_date = st.date_input("유통기한")
-cat = st.selectbox("화장품 종류", cosmetic_categories)
-rating = st.slider("만족도 (1~5)", 1, 5, 3)
-if st.button("추가하기", key=make_safe_key("add_drawer", name, exp_date)):
-if name:
-st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "별점": rating, "카테고리": cat})
-st.success(f"'{name}' 추가됨")
-
-```
-for idx, item in enumerate(list(st.session_state.my_drawer)):
-    st.subheader(f"{item['이름']} 🧴")
-    days_left = (item['유통기한'] - datetime.today().date()).days
-    if days_left < 0:
-        st.warning("⚠️ 유통기한이 지났습니다!")
-    else:
-        st.write(f"남은 사용 가능 기간: {days_left}일")
-    st.write(f"⭐ 만족도: {item['별점']}")
-
-    # 만족도 5 제품과 유사한 제품 추천
-    if item['별점'] == 5:
-        similar_prods = recommend_products_for_user(similar_to=item)
-        if similar_prods:
-            st.write("🔹 이 제품과 유사한 추천 제품:")
-            for sp in similar_prods[:3]:
-                st.write(f"- {sp['이름']} ({sp['종류']})")
-```
-
-elif choice == "🔎 검색":
-st.header("🔍 제품 검색 & 추천")
-query = st.text_input("예: '민감성 피부용 토너'")
-selected_ing = st.session_state.get("selected_ing", None)
-
-```
-if selected_ing:
-    info = ingredient_desc.get(selected_ing, ["정보 없음",""])
-    st.info(f"{selected_ing} → 장점: {info[0]}, 주의: {info[1]}")
-    if st.button("검색 화면으로 돌아가기"):
-        st.session_state.selected_ing = None
-else:
-    if st.button("검색 / 추천", key=make_safe_key("search_button", query or "noquery")):
-        category = None
-        for cat in types:
-            if cat in (query or ""):
-                category = cat
-                break
-        results = recommend_products_for_user(query=query, category=category)
-        if not results:
-            st.warning("❌ 현재 조건에 맞는 제품이 없습니다.")
-        else:
-            st.success(f"✅ {len(results)}개 제품을 추천해요:")
-            for prod in results[:10]:
-                st.subheader(f"{prod['이름']} — {prod['종류']}")
-                st.write(f"💵 가격: {prod['가격']}원")
-                st.write("🧴 성분:")
-                for ing in prod["성분"]:
-                    btn_key = make_safe_key("search_ing", prod['이름'], ing)
-                    if st.button(ing, key=btn_key):
-                        st.session_state.selected_ing = ing
-                        st.experimental_rerun()
-            # 추천 이유 표시
-            st.write("💡 추천 이유: 사용자의 피부 타입/민감도/트러블에 맞춘 필터링 후 표시됨")
-```
-
-elif choice == "💡 루틴 추천":
-st.header("💡 고민을 말하면 맞춤 루틴 추천")
-concern = st.text_area("피부 고민을 입력하세요 (예: 건조, 트러블, 민감)")
-if st.button("루틴 추천", key=make_safe_key("routine_reco", concern or "no_concern")):
-skin_products = [p for p in st.session_state.my_drawer if p.get("카테고리") == "피부화장품" and (p['유통기한'] - datetime.today().date()).days >= 0]
-if not skin_products:
-st.warning("서랍에 피부화장품이 없습니다. 먼저 추가해주세요.")
-else:
-st.success("💧 추천 루틴:")
-morning_order = ["토너","세럼","로션","크림","선크림"]
-evening_order = ["토너","세럼","로션","크림","팩"]
-
-```
-        def routine_for_order(order, products_list):
-            routine = []
-            used_indices = set()
-            for step in order:
-                matched = False
-                for idx, p in enumerate(products_list):
-                    if idx in used_indices:
-                        continue
-                    if step.lower() in p["이름"].lower():
-                        routine.append(f"{step}: {p['이름']}")
-                        used_indices.add(idx)
-                        matched = True
-                        break
-                if matched:
-                    continue
-                for idx, p in enumerate(products_list):
-                    if idx in used_indices:
-                        continue
-                    routine.append(f"{step}: {p['이름']}")
-                    used_indices.add(idx)
-                    matched = True
-                    break
-            return routine
-
-        st.write("🌞 아침 루틴:")
-        for r in routine_for_order(morning_order, skin_products):
-            st.write(f"- {r}")
-        st.write("🌙 저녁 루틴:")
-        for r in routine_for_order(evening_order, skin_products):
-            st.write(f"- {r}") 
