@@ -41,6 +41,10 @@ if 'selected_search_product' not in st.session_state:
     st.session_state.selected_search_product = None
 if 'selected_search_ingredient' not in st.session_state:
     st.session_state.selected_search_ingredient = None
+if 'search_clicked' not in st.session_state:
+    st.session_state.search_clicked = False
+if 'search_query' not in st.session_state:
+    st.session_state.search_query = ""
 
 # --- 데이터 정의 ---
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
@@ -154,7 +158,7 @@ def recommend_products_for_user(query=None, category=None):
             continue
         if user["민감도"] > prod["권장_민감도_max"]:
             continue
-        if user["트러블정도"] > prod["권장_트러블_max"]:
+        if user["트러블정도"] > prod["트러블정도"]:
             continue
         match = False
         if category and prod["종류"] == category:
@@ -263,13 +267,20 @@ elif choice == "📷 제품 촬영":
 elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
     query = st.text_input("예: '민감성 피부용 토너'")
+
     if st.button("검색 / 추천", key=make_safe_key("search_button", query or "noquery")):
+        st.session_state.search_clicked = True
+        st.session_state.search_query = query
+
+    if st.session_state.search_clicked:
+        saved_query = st.session_state.search_query
         category = None
         for cat in types:
-            if cat in (query or ""):
+            if cat in (saved_query or ""):
                 category = cat
                 break
-        results = recommend_products_for_user(query=query, category=category)
+        results = recommend_products_for_user(query=saved_query, category=category)
+
         if not results:
             st.warning("❌ 현재 조건에 맞는 제품이 없습니다.")
         else:
@@ -278,6 +289,7 @@ elif choice == "🔎 검색":
                 st.subheader(f"{prod['이름']} — {prod['종류']}")
                 st.write(f"💵 가격: {prod['가격']}원")
                 st.write("🧴 성분:")
+
                 cols = st.columns(len(prod["성분"]))
                 for i, ing in enumerate(prod["성분"]):
                     btn_key = make_safe_key("search_ing", prod['이름'], ing)
@@ -291,7 +303,6 @@ elif choice == "🔎 검색":
                     for r in reasons:
                         st.write(f"- {r}")
 
-                # 이 제품에서 선택된 성분이면 바로 아래에 설명
                 if (
                     st.session_state.selected_search_product == prod['이름']
                     and st.session_state.selected_search_ingredient in prod["성분"]
