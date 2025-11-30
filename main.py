@@ -41,10 +41,10 @@ if 'selected_search_product' not in st.session_state:
     st.session_state.selected_search_product = None
 if 'selected_search_ingredient' not in st.session_state:
     st.session_state.selected_search_ingredient = None
-if 'search_clicked' not in st.session_state:
-    st.session_state.search_clicked = False
 if 'search_query' not in st.session_state:
     st.session_state.search_query = ""
+if 'search_results' not in st.session_state:
+    st.session_state.search_results = []
 
 # --- 데이터 정의 ---
 types = ["립스틱","틴트","토너","로션","크림","세럼","아이브로우","아이라이너","팩","선크림"]
@@ -61,7 +61,7 @@ ingredient_desc = {
     "히알루론산": ["보습, 탄력", "저민감성 피부 안전"],
     "글리세린": ["보습, 수분 유지", "극건성 피부 안전"],
     "판테놀": ["진정, 재생", "저자극"],
-    "세라마이드": ["보습, 장벽 강화", "민감성 피부 안전"],
+    "세라마이 드": ["보습, 장벽 강화", "민감성 피부 안전"],
     "마데카소사이드": ["진정, 재생", "과다 사용 시 민감 피부 주의"],
     "비타민C": ["미백, 항산화", "자극 가능성"],
     "레티놀": ["재생, 노화방지", "민감 피부 자극 가능"],
@@ -268,50 +268,53 @@ elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
     query = st.text_input("예: '민감성 피부용 토너'", value=st.session_state.search_query)
 
+    # 검색 버튼
     if st.button("검색 / 추천", key=make_safe_key("search_button", query or "noquery")):
-        st.session_state.search_clicked = True
         st.session_state.search_query = query
+        # 검색 실행해서 결과를 session_state에 저장
+        category = None
+        for cat in types:
+            if cat in (query or ""):
+                category = cat
+                break
+        st.session_state.search_results = recommend_products_for_user(query=query, category=category)
+        # 성분 선택 초기화
         st.session_state.selected_search_product = None
         st.session_state.selected_search_ingredient = None
 
-    if st.session_state.search_clicked:
-        saved_query = st.session_state.search_query
-        category = None
-        for cat in types:
-            if cat in (saved_query or ""):
-                category = cat
-                break
-        results = recommend_products_for_user(query=saved_query, category=category)
+    results = st.session_state.search_results
 
-        if not results:
-            st.warning("❌ 현재 조건에 맞는 제품이 없습니다.")
-        else:
-            st.success(f"✅ {len(results)}개 제품을 추천해요:")
-            for prod in results[:10]:
-                st.subheader(f"{prod['이름']} — {prod['종류']}")
-                st.write(f"💵 가격: {prod['가격']}원")
-                st.write("🧴 성분:")
+    if results:
+        st.success(f"✅ {len(results)}개 제품을 추천해요:")
+        for prod in results[:10]:
+            st.subheader(f"{prod['이름']} — {prod['종류']}")
+            st.write(f"💵 가격: {prod['가격']}원")
+            st.write("🧴 성분:")
 
-                cols = st.columns(len(prod["성분"]))
-                for i, ing in enumerate(prod["성분"]):
-                    btn_key = make_safe_key("search_ing", prod['이름'], ing)
-                    if cols[i].button(ing, key=btn_key):
-                        st.session_state.selected_search_product = prod['이름']
-                        st.session_state.selected_search_ingredient = ing
+            cols = st.columns(len(prod["성분"]))
+            for i, ing in enumerate(prod["성분"]):
+                btn_key = make_safe_key("search_ing", prod['이름'], ing)
+                if cols[i].button(ing, key=btn_key):
+                    # 어떤 제품/성분을 눌렀는지 저장만 한다
+                    st.session_state.selected_search_product = prod['이름']
+                    st.session_state.selected_search_ingredient = ing
 
-                reasons = explain_recommendation(prod, st.session_state.user_skin)
-                if reasons:
-                    st.write("🤔 이 제품을 추천한 이유:")
-                    for r in reasons:
-                        st.write(f"- {r}")
+            reasons = explain_recommendation(prod, st.session_state.user_skin)
+            if reasons:
+                st.write("🤔 이 제품을 추천한 이유:")
+                for r in reasons:
+                    st.write(f"- {r}")
 
-                if (
-                    st.session_state.selected_search_product == prod['이름']
-                    and st.session_state.selected_search_ingredient in prod["성분"]
-                ):
-                    ing = st.session_state.selected_search_ingredient
-                    info = ingredient_desc.get(ing, ["정보 없음",""])
-                    st.info(f"🔍 {ing} → 장점: {info[0]}, 주의: {info[1]}")
+            # 선택된 성분이면 이 카드 바로 아래에 설명
+            if (
+                st.session_state.selected_search_product == prod['이름']
+                and st.session_state.selected_search_ingredient in prod["성분"]
+            ):
+                ing = st.session_state.selected_search_ingredient
+                info = ingredient_desc.get(ing, ["정보 없음",""])
+                st.info(f"🔍 {ing} → 장점: {info[0]}, 주의: {info[1]}")
+    else:
+        st.info("조건에 맞는 제품을 검색해 보세요!")
 
 elif choice == "💡 루틴 추천":
     st.header("💡 고민을 말하면 맞춤 루틴 추천")
