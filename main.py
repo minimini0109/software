@@ -167,24 +167,31 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
-# --- 제품 촬영 ---
+# --- 제품 촬영: 에뛰드 글로우 픽싱 틴트 모브먼트 + 톤별 점수 ---
 def recognize_product_from_image(image):
-    prod = random.choice(cosmetic_db)
-    reasons = []
-    score = 100
-    if prod.get("추천_피부톤") and user.get("피부톤") and user["피부톤"] != prod["추천_피부톤"]:
-        score -= 20
-        reasons.append(f"사용자 피부톤({user['피부톤']})과 맞지 않음")
-    if prod.get("추천_피부타입") and user.get("피부타입") and user["피부타입"] != prod["추천_피부타입"]:
-        score -= 20
-        reasons.append(f"사용자 피부타입({user['피부타입']})과 맞지 않음")
-    if user["민감도"] >= prod["권장_민감도_max"]:
-        score -= 20
-        reasons.append("민감도가 높아 성분 일부가 자극 가능")
-    if user["트러블정도"] >= prod["권장_트러블_max"]:
-        score -= 20
-        reasons.append("트러블 정도가 높아 일부 성분 자극 가능")
-    score = max(score,0)
+    prod = {
+        "이름": "에뛰드 글로우 픽싱 틴트 모브먼트",
+        "종류": "틴트",
+        "성분": ["비타민E", "글리세린"],
+    }
+
+    tone = user.get("피부톤")
+    if tone == "봄웜톤":
+        score = 90
+        reasons = ["봄웜톤에 잘 어울리는 차분한 모브 계열 컬러예요."]
+    elif tone == "가을웜톤":
+        score = 90
+        reasons = ["가을웜톤에도 어울리는 웜 기가 섞인 로즈-모브 컬러예요."]
+    elif tone == "겨울쿨톤":
+        score = 50
+        reasons = ["채도와 명도가 살짝 안 맞을 수 있어, 겨울쿨톤에선 호불호가 갈릴 수 있어요."]
+    elif tone == "여름쿨톤":
+        score = 75
+        reasons = ["여름쿨톤에게는 무난하게 어울리지만, 완전 찰떡 컬러는 아닐 수 있어요."]
+    else:
+        score = 70
+        reasons = ["피부톤 정보가 없어 중간 점수로 추천해요. 실사용 시 발색 테스트를 권장해요."]
+
     return prod, score, reasons
 
 # --- 메뉴 ---
@@ -248,7 +255,7 @@ elif choice == "📷 제품 촬영":
             st.info(f"{ing_choice} → 장점: {info[0]}, 주의: {info[1]}")
         add_key = make_safe_key("scan_add_drawer", prod["이름"])
         if st.button("서랍에 추가하기", key=add_key):
-            cat_guess = "색조화장품" if prod["종류"] in ["립스틱","틴트","아이브로우","아이라이너"] else "피부화장품"
+            cat_guess = "색조화장품"
             st.session_state.my_drawer.append({"이름": prod["이름"], "유통기한": datetime.today().date(), "별점": 3, "카테고리": cat_guess})
             st.success(f"'{prod['이름']}'이 서랍에 추가되었습니다.")
             st.rerun()
@@ -271,21 +278,27 @@ elif choice == "🔎 검색":
                 st.subheader(f"{prod['이름']} — {prod['종류']}")
                 st.write(f"💵 가격: {prod['가격']}원")
                 st.write("🧴 성분:")
-                for ing in prod["성분"]:
+                cols = st.columns(len(prod["성분"]))
+                for i, ing in enumerate(prod["성분"]):
                     btn_key = make_safe_key("search_ing", prod['이름'], ing)
-                    if st.button(ing, key=btn_key):
+                    if cols[i].button(ing, key=btn_key):
                         st.session_state.selected_search_product = prod['이름']
                         st.session_state.selected_search_ingredient = ing
+
                 reasons = explain_recommendation(prod, st.session_state.user_skin)
                 if reasons:
                     st.write("🤔 이 제품을 추천한 이유:")
                     for r in reasons:
                         st.write(f"- {r}")
 
-    if st.session_state.selected_search_product and st.session_state.selected_search_ingredient:
-        ing = st.session_state.selected_search_ingredient
-        info = ingredient_desc.get(ing, ["정보 없음",""])
-        st.info(f"🔍 **{ing} 성분 정보** → 장점: {info[0]}, 주의: {info[1]}")
+                # 이 제품에서 선택된 성분이면 바로 아래에 설명
+                if (
+                    st.session_state.selected_search_product == prod['이름']
+                    and st.session_state.selected_search_ingredient in prod["성분"]
+                ):
+                    ing = st.session_state.selected_search_ingredient
+                    info = ingredient_desc.get(ing, ["정보 없음",""])
+                    st.info(f"🔍 {ing} → 장점: {info[0]}, 주의: {info[1]}")
 
 elif choice == "💡 루틴 추천":
     st.header("💡 고민을 말하면 맞춤 루틴 추천")
