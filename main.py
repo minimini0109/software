@@ -61,7 +61,7 @@ ingredient_desc = {
     "히알루론산": ["보습, 탄력", "저민감성 피부 안전"],
     "글리세린": ["보습, 수분 유지", "극건성 피부 안전"],
     "판테놀": ["진정, 재생", "저자극"],
-    "세라마이 드": ["보습, 장벽 강화", "민감성 피부 안전"],
+    "세라마이드": ["보습, 장벽 강화", "민감성 피부 안전"],
     "마데카소사이드": ["진정, 재생", "과다 사용 시 민감 피부 주의"],
     "비타민C": ["미백, 항산화", "자극 가능성"],
     "레티놀": ["재생, 노화방지", "민감 피부 자극 가능"],
@@ -171,6 +171,24 @@ def recommend_products_for_user(query=None, category=None):
             results.append(prod)
     return results
 
+# --- 5점 상품 유사 추천 ---
+def get_similar_products_from_db(favorite_item):
+    """서랍 5점 상품(favorite_item)과 비슷한 가상 제품 추천.
+       여기서는 간단히: 같은 카테고리(색조/피부) + 같은 종류 기준. [web:171]"""
+    # favorite_item: {"이름", "카테고리", ...}
+    fav_cat = favorite_item.get("카테고리")
+    # 카테고리→종류 매핑 단순화
+    if fav_cat == "색조화장품":
+        target_types = ["립스틱", "틴트", "아이브로우", "아이라이너"]
+    elif fav_cat == "피부화장품":
+        target_types = ["토너", "로션", "크림", "세럼", "팩", "선크림"]
+    else:
+        target_types = types
+
+    candidates = [p for p in cosmetic_db if p["종류"] in target_types]
+    random.shuffle(candidates)
+    return candidates[:5]
+
 # --- 제품 촬영: 에뛰드 글로우 픽싱 틴트 모브먼트 + 톤별 점수 ---
 def recognize_product_from_image(image):
     prod = {
@@ -239,6 +257,18 @@ elif choice == "🗄️ 서랍":
             st.session_state.my_drawer.pop(idx)
             st.rerun()
 
+    # ⭐ 5점 상품 기반 유사 추천
+    favorites = [p for p in st.session_state.my_drawer if p.get("별점") == 5]
+    if favorites:
+        st.markdown("---")
+        st.subheader("🌟 별점 5점 상품과 비슷한 추천")
+        # 간단히 첫 번째 5점 상품을 기준으로 추천
+        base_item = favorites[0]
+        st.write(f"기준 상품: **{base_item['이름']}** ({base_item.get('카테고리','')})")
+        similar_prods = get_similar_products_from_db(base_item)
+        for prod in similar_prods:
+            st.write(f"- {prod['이름']} — {prod['종류']} / {prod['가격']}원")
+
 elif choice == "📷 제품 촬영":
     st.header("📷 제품 촬영 / 스캔")
     uploaded_file = st.file_uploader("제품 이미지 업로드", type=["jpg","jpeg","png"])
@@ -268,17 +298,14 @@ elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
     query = st.text_input("예: '민감성 피부용 토너'", value=st.session_state.search_query)
 
-    # 검색 버튼
     if st.button("검색 / 추천", key=make_safe_key("search_button", query or "noquery")):
         st.session_state.search_query = query
-        # 검색 실행해서 결과를 session_state에 저장
         category = None
         for cat in types:
             if cat in (query or ""):
                 category = cat
                 break
         st.session_state.search_results = recommend_products_for_user(query=query, category=category)
-        # 성분 선택 초기화
         st.session_state.selected_search_product = None
         st.session_state.selected_search_ingredient = None
 
@@ -295,7 +322,6 @@ elif choice == "🔎 검색":
             for i, ing in enumerate(prod["성분"]):
                 btn_key = make_safe_key("search_ing", prod['이름'], ing)
                 if cols[i].button(ing, key=btn_key):
-                    # 어떤 제품/성분을 눌렀는지 저장만 한다
                     st.session_state.selected_search_product = prod['이름']
                     st.session_state.selected_search_ingredient = ing
 
@@ -305,7 +331,6 @@ elif choice == "🔎 검색":
                 for r in reasons:
                     st.write(f"- {r}")
 
-            # 선택된 성분이면 이 카드 바로 아래에 설명
             if (
                 st.session_state.selected_search_product == prod['이름']
                 and st.session_state.selected_search_ingredient in prod["성분"]
