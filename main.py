@@ -213,7 +213,7 @@ elif choice == "🗄️ 서랍":
             if name:
                 st.session_state.my_drawer.append({"이름": name, "유통기한": exp_date, "별점": rating, "카테고리": cat})
                 st.success(f"'{name}' 추가됨")
-                st.experimental_rerun()
+                st.rerun()
 
     for idx, item in enumerate(list(st.session_state.my_drawer)):
         st.subheader(f"{item['이름']} 🧴")
@@ -226,7 +226,7 @@ elif choice == "🗄️ 서랍":
         del_key = make_safe_key("del", idx, item['이름'])
         if st.button("삭제", key=del_key):
             st.session_state.my_drawer.pop(idx)
-            st.experimental_rerun()
+            st.rerun()
 
 elif choice == "📷 제품 촬영":
     st.header("📷 제품 촬영 / 스캔")
@@ -251,7 +251,7 @@ elif choice == "📷 제품 촬영":
             cat_guess = "색조화장품" if prod["종류"] in ["립스틱","틴트","아이브로우","아이라이너"] else "피부화장품"
             st.session_state.my_drawer.append({"이름": prod["이름"], "유통기한": datetime.today().date(), "별점": 3, "카테고리": cat_guess})
             st.success(f"'{prod['이름']}'이 서랍에 추가되었습니다.")
-            st.experimental_rerun()
+            st.rerun()
 
 elif choice == "🔎 검색":
     st.header("🔍 제품 검색 & 추천")
