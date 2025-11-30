@@ -72,7 +72,7 @@ price_range = {
 "선크림": (18000, 35000)
 }
 
---- 헬퍼: 안전한 key 생성 ---
+#--- 헬퍼: 안전한 key 생성 ---
 def make_safe_key(*parts):
 joined = "".join([str(p) for p in parts if p is not None])
 safe = re.sub(r'[^0-9a-zA-Zㄱ-힣]', '_', joined)
