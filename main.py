@@ -158,7 +158,7 @@ def recommend_products_for_user(query=None, category=None):
             continue
         if user["민감도"] > prod["권장_민감도_max"]:
             continue
-        if user["트러블정도"] > prod["트러블정도"]:
+        if user["트러블정도"] > prod["권장_트러블_max"]:
             continue
         match = False
         if category and prod["종류"] == category:
